@@ -1,4 +1,4 @@
-package com.awesomeproject;
+package com.indoornavigation;
 
 import android.app.Application;
 
