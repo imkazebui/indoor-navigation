@@ -7,77 +7,113 @@
  */
 
 import React, { Component } from "react";
-import {
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-  FlatList,
-  DeviceEventEmitter
-} from "react-native";
+import { StyleSheet, Text, View, Image } from "react-native";
 import Beacons from "react-native-beacons-manager";
 
-const instructions = Platform.select({
-  ios: "Press Cmd+R to reload,\n" + "Cmd+D or shake for dev menu",
-  android:
-    "Double tap R on your keyboard to reload,\n" +
-    "Shake or press menu button for dev menu"
-});
-
 // Request for authorization while the app is open
-Beacons.requestAlwaysAuthorization();
-// Beacons.requestWhenInUseAuthorization();
+Beacons.requestWhenInUseAuthorization();
+// Beacons.requestAlwaysAuthorization();
 // Define a region which can be identifier + uuid,
 // identifier + uuid + major or identifier + uuid + major + minor
 // (minor and major properties are numbers)
 const region = {
-  identifier: "GemTot for iOS",
-  uuid: "6665542b-41a1-5e00-931c-6a82db9b78c1"
+  identifier: "Tan Binh",
+  uuid: "B5B182C7-EAB1-4988-AA99-B5C1517008D9",
 };
 // Range for beacons inside the region
+Beacons.startMonitoringForRegion(region);
 Beacons.startRangingBeaconsInRegion(region);
-// Beacons.startUpdatingLocation();
+
+Beacons.startUpdatingLocation();
 
 export default class App extends Component {
   constructor(props) {
     super(props);
-    // Create our dataSource which will be displayed in the ListView
 
     this.state = {
-      bluetoothState: "",
-      // region information
-      identifier: "GemTot for iOS",
-      uuid: "6665542b-41a1-5e00-931c-6a82db9b78c1",
-      // React Native ListView datasource initialization
-      dataSource: []
+      distance: -1,
+      img: "",
+      beacon: {
+        minor: "",
+      },
     };
+
+    this.detectClosestBeacon = this.detectClosestBeacon.bind(this);
+    this.getSuggetionFromServer = this.getSuggetionFromServer.bind(this);
+    this.sendRequest = this.sendRequest.bind(this);
   }
 
-  // componentDidMount() {
-  //   this.beaconsDidRange = DeviceEventEmitter.addListener(
-  //     "beaconsDidRange",
-  //     data => {
-  //       this.setState({
-  //         dataSource: data.beacons
-  //       });
-  //     }
-  //   );
-  // }
+  componentDidMount() {
+    this.beaconsDidRange = Beacons.BeaconsEventEmitter.addListener(
+      "beaconsDidRange",
+      (data) => {
+        const { beacons = [] } = data;
 
-  // componentWillUnMount() {
-  //   this.beaconsDidRange = null;
-  // }
+        this.detectClosestBeacon(beacons);
+      }
+    );
+  }
+
+  componentDidUpdate(preProps, preState) {
+    const { beacon, distance } = this.state;
+
+    if (distance !== -1) {
+      if (beacon.minor != preState.beacon.minor) {
+        this.getSuggetionFromServer(beacon);
+      }
+    }
+  }
+
+  componentWillUnMount() {
+    this.beaconsDidRange = null;
+  }
+
+  detectClosestBeacon(beacons) {
+    // the first element of array is the closest
+
+    if (beacons[0]) {
+      this.setState({
+        distance: beacons[0].accuracy,
+        beacon: beacons[0],
+      });
+    } else {
+      this.setState({
+        distance: -1,
+      });
+    }
+  }
+
+  sendRequest(beacon) {
+    return new Promise((resolve) => {
+      let image = require("./image-3.png");
+      if (beacon.minor == 4) {
+        image = require("./image-4.png");
+      }
+
+      return resolve(image);
+    });
+  }
+
+  getSuggetionFromServer(beacon) {
+    // send request and get response from server
+    this.sendRequest(beacon).then((data) => {
+      this.setState({
+        img: data,
+      });
+    });
+  }
 
   render() {
-    const { bluetoothState, dataSource } = this.state;
+    const { distance, img } = this.state;
 
     return (
       <View style={styles.container}>
-        <Text style={styles.btleConnectionStatus}>
-          Bluetooth connection status: {bluetoothState ? bluetoothState : "NA"}
+        <Text style={styles.headline}>
+          Distance: {distance != -1 ? distance : "out of range"}
         </Text>
-        <Text style={styles.headline}>All beacons in the area</Text>
-        {/* {dataSource.map(dt => this.renderRow(dt))} */}
+        {distance != -1 && (
+          <Image source={img} style={{ width: "100%", height: "100%" }} />
+        )}
       </View>
     );
   }
@@ -89,21 +125,21 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F5FCFF"
+    backgroundColor: "#F5FCFF",
   },
   btleConnectionStatus: {
     fontSize: 20,
-    paddingTop: 20
+    paddingTop: 20,
   },
   headline: {
     fontSize: 20,
-    paddingTop: 20
+    paddingTop: 20,
   },
   row: {
     padding: 8,
-    paddingBottom: 16
+    paddingBottom: 16,
   },
   smallText: {
-    fontSize: 11
-  }
+    fontSize: 11,
+  },
 });
